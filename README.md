@@ -17,7 +17,7 @@ It is designed to help students understand:
   - Credit value
 - Automatically calculates:
   - **Weighted average**
-  - **Weighted median**
+  - **Weighted median (average of middle two)**
   - Other summary statistics
 - Applies **St Andrews classification rules** to determine:
   - First

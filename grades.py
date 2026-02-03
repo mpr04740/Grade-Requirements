@@ -26,15 +26,10 @@ def weighted_mean(gc: np.ndarray) -> Tuple[float, float]:
     mean = float(np.dot(grades, credits) / total_credits)
     return mean, total_credits
 
-
 def weighted_median(gc: np.ndarray) -> float:
-    """
-    Credit-weighted median of grades.
-    """
     grades = gc[:, 0].astype(float)
     credits = gc[:, 1].astype(float)
 
-    # sort by grade
     order = np.argsort(grades)
     grades = grades[order]
     credits = credits[order]
@@ -46,8 +41,12 @@ def weighted_median(gc: np.ndarray) -> float:
 
     cutoff = total / 2.0
     idx = np.searchsorted(cum_credits, cutoff)
-    return float(grades[idx])
 
+    # EXACT split → average middle two
+    if cum_credits[idx] == cutoff and idx + 1 < len(grades):
+        return float((grades[idx] + grades[idx + 1]) / 2.0)
+
+    return float(grades[idx])
 
 CLASS_ORDER = {
     "Not of Honours standard": 5,

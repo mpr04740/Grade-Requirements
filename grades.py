@@ -57,37 +57,33 @@ CLASS_ORDER = {
 }
 
 def classify_degree(mean: float, median: float) -> str:
-    """
-    Implements the table exactly.
-    """
     if np.isnan(mean) or np.isnan(median):
         return "Not of Honours standard"
 
-    # First (I)
-    if mean >= 16.5:
-        return "First (I)"
-    if 16.0 <= mean <= 16.4:
-        return "First (I)" if median >= 16.5 else "Upper Second (II.1)"
+    rules = [
+        ("First (I)",                 lambda m, d: m >= 16.5),
+        ("First (I)",                 lambda m, d: 16.0 <= m <= 16.4 and d >= 16.5),
 
-    # Upper Second (II.1)
-    if 13.5 <= mean <= 15.9:
-        return "Upper Second (II.1)"
-    if 13.0 <= mean <= 13.4:
-        return "Upper Second (II.1)" if median >= 13.5 else "Lower Second (II.2)"
+        ("Upper Second (II.1)",       lambda m, d: m <= 16.4 and d <= 16.4),
+        ("Upper Second (II.1)",       lambda m, d: 13.5 <= m <= 15.9),
+        ("Upper Second (II.1)",       lambda m, d: 13.0 <= m <= 13.4 and d >= 13.5),
 
-    # Lower Second (II.2)
-    if 10.5 <= mean <= 12.9:
-        return "Lower Second (II.2)"
-    if 10.0 <= mean <= 10.4:
-        return "Lower Second (II.2)" if median >= 10.5 else "Third (III)"
+        ("Lower Second (II.2)",       lambda m, d: d <= 13.4),
+        ("Lower Second (II.2)",       lambda m, d: 10.5 <= m <= 12.9),
+        ("Lower Second (II.2)",       lambda m, d: 10.0 <= m <= 10.4 and d >= 10.5),
 
-    # Third (III)
-    if 7.0 <= mean <= 9.9:
-        return "Third (III)"
+        ("Third (III)",               lambda m, d: m <= 10.4),
+        ("Third (III)",               lambda m, d: 7.0 <= m <= 9.9),
 
-    # Not of Honours standard
-    return "Not of Honours standard"
+        ("Not of Honours standard",   lambda m, d: m <= 6.9),
+    ]
 
+    for label, cond in rules:
+        if cond(mean, median):
+            return label
+
+    # Absolute safety net: if something unexpected happens
+    return "Hi sorry there is a small error, not your fault! Your average and median are correct though. Contact me please."
 
 def minimal_forward_average_for_target_mean(target_mean,
                                             credits_outstanding,

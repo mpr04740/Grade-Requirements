@@ -311,6 +311,53 @@ def check_suggestion_meets_requirements(
 # Streamlit UI (with optional CSV upload)
 # ------------------------
 
+st.markdown(
+    """
+    <style>
+    .coffee-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+
+        padding: 10px 18px;
+        background: linear-gradient(135deg, #FFDD00, #FFC107);
+        color: #111111;
+
+        font-weight: 700;
+        font-size: 15px;
+        letter-spacing: 0.2px;
+
+        border-radius: 14px;
+        text-decoration: none;
+
+        box-shadow: 0 6px 16px rgba(255, 221, 0, 0.25);
+        transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+
+    .coffee-btn:hover {
+        background: linear-gradient(135deg, #FFE066, #FFB300);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 22px rgba(255, 221, 0, 0.35);
+        color: #000000;
+    }
+
+    .coffee-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 4px 10px rgba(255, 221, 0, 0.25);
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+col1, col2, col3 = st.columns([6, 1, 1])
+with col3:
+    st.markdown(
+        '<a class="coffee-btn" href="https://buymeacoffee.com/michaelangelospr?status=1" target="_blank">☕ Buy me a coffee</a>',
+        unsafe_allow_html=True
+    )
+
+
 st.set_page_config(
     page_title="Degree Classification Planner",
     layout="wide",
@@ -399,7 +446,8 @@ with st.form("degree_input_form"):
     st.subheader("1. Enter your modules")
 
     st.markdown(
-        "**Optional:** upload CSVs and then edit in-place.\n\n"
+        "Use the tables below to enter your completed and remaining modules.\n\n"
+        "**Optional:** upload CSVs and then edit.\n\n"
         "- **Completed CSV** must have columns: `Grade`, `Credits` (case-insensitive; `credit` also accepted)\n"
         "- **Remaining CSV** must have column: `Credits` (or `credit`)\n"
     )
@@ -558,7 +606,7 @@ if "summary" in st.session_state:
     with col5:
         needed_forward_mean = summary["needed_forward_mean"]
         if np.isnan(needed_forward_mean):
-            st.info("No remaining credits – no forward average required.")
+            st.info("No remaining credits - no forward average required.")
         else:
             st.metric(
                 "Required average on remaining modules (mean)",
@@ -586,7 +634,7 @@ if "summary" in st.session_state:
     if len(outstanding_list) > 0:
         st.markdown("---")
         st.subheader("Scenario planner: adjust your future grades")
-
+        
         n_outstanding = len(outstanding_list)
         if "suggested_grades" not in st.session_state or len(st.session_state["suggested_grades"]) != n_outstanding:
             default_grade = summary["needed_forward_mean"]

@@ -9,16 +9,22 @@ import streamlit as st
 # Core logic 
 # ------------------------
 
-def weighted_mean(gc: np.ndarray) -> float:
+def weighted_mean(gc: np.ndarray) -> Tuple[float, float]:
     """
     gc: Nx2 numpy array -> [grade, credit]
+    returns: (credit-weighted mean grade, total credits)
     """
+    if gc.size == 0:
+        return np.nan, 0.0
+
     grades = gc[:, 0].astype(float)
     credits = gc[:, 1].astype(float)
-    total_credits = credits.sum()
+    total_credits = float(credits.sum())
     if total_credits == 0:
-        return np.nan
-    return float(np.dot(grades, credits) / total_credits), total_credits
+        return np.nan, 0.0
+
+    mean = float(np.dot(grades, credits) / total_credits)
+    return mean, total_credits
 
 
 def weighted_median(gc: np.ndarray) -> float:
@@ -53,30 +59,35 @@ CLASS_ORDER = {
 
 def classify_degree(mean: float, median: float) -> str:
     """
-    Implements the rules from the table.
-    First decide band by mean, then apply 'uplift' rules using median.
+    Implements the table exactly.
     """
-    # Base class from mean alone
-    if mean >= 16.5:
-        base = "First (I)"
-    elif mean >= 13.5:
-        base = "Upper Second (II.1)"
-    elif mean >= 10.5:
-        base = "Lower Second (II.2)"
-    elif mean >= 7.0:
-        base = "Third (III)"
-    else:
+    if np.isnan(mean) or np.isnan(median):
         return "Not of Honours standard"
 
-    # Borderline uplifts
-    if 16.0 <= mean <= 16.4 and median >= 16.5:
+    # First (I)
+    if mean >= 16.5:
         return "First (I)"
-    if 13.0 <= mean <= 13.4 and median >= 13.5:
-        return "Upper Second (II.1)"
-    if 10.0 <= mean <= 10.4 and median >= 10.5:
-        return "Lower Second (II.2)"
+    if 16.0 <= mean <= 16.4:
+        return "First (I)" if median >= 16.5 else "Upper Second (II.1)"
 
-    return base
+    # Upper Second (II.1)
+    if 13.5 <= mean <= 15.9:
+        return "Upper Second (II.1)"
+    if 13.0 <= mean <= 13.4:
+        return "Upper Second (II.1)" if median >= 13.5 else "Lower Second (II.2)"
+
+    # Lower Second (II.2)
+    if 10.5 <= mean <= 12.9:
+        return "Lower Second (II.2)"
+    if 10.0 <= mean <= 10.4:
+        return "Lower Second (II.2)" if median >= 10.5 else "Third (III)"
+
+    # Third (III)
+    if 7.0 <= mean <= 9.9:
+        return "Third (III)"
+
+    # Not of Honours standard
+    return "Not of Honours standard"
 
 
 def minimal_forward_average_for_target_mean(target_mean,
@@ -300,8 +311,9 @@ def check_suggestion_meets_requirements(
     return result
 
 
+
 # ------------------------
-# Streamlit UI
+# Streamlit UI (with optional CSV upload)
 # ------------------------
 
 st.set_page_config(
@@ -323,6 +335,39 @@ TARGET_CLASS_OPTIONS = {
     "Third (III)": 4,
 }
 
+# ------------------------
+# CSV helpers (UI-side)
+# ------------------------
+
+def _normalise_cols(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df.columns = [str(c).strip().lower() for c in df.columns]
+    # allow singular "credit"
+    if "credit" in df.columns and "credits" not in df.columns:
+        df = df.rename(columns={"credit": "credits"})
+    return df
+
+def read_csv_upload(uploaded_file) -> pd.DataFrame:
+    df = pd.read_csv(uploaded_file)
+    return _normalise_cols(df)
+
+def validate_completed_csv(df: pd.DataFrame) -> pd.DataFrame:
+    required = {"grade", "credits"}
+    missing = required - set(df.columns)
+    if missing:
+        raise ValueError(f"Missing columns: {sorted(missing)}. Expected: Grade, Credits.")
+    out = df[["grade", "credits"]].copy()
+    out = out.rename(columns={"grade": "Grade", "credits": "Credits"})
+    return out
+
+def validate_remaining_csv(df: pd.DataFrame) -> pd.DataFrame:
+    required = {"credits"}
+    missing = required - set(df.columns)
+    if missing:
+        raise ValueError(f"Missing columns: {sorted(missing)}. Expected: Credits.")
+    out = df[["credits"]].copy()
+    out = out.rename(columns={"credits": "Credits"})
+    return out
 
 def parse_completed(df: pd.DataFrame) -> List[Tuple[float, float]]:
     rows = []
@@ -335,7 +380,6 @@ def parse_completed(df: pd.DataFrame) -> List[Tuple[float, float]]:
             continue
         rows.append((float(grade), float(credit)))
     return rows
-
 
 def parse_outstanding(df: pd.DataFrame) -> List[Tuple[float, float]]:
     """
@@ -359,18 +403,66 @@ def parse_outstanding(df: pd.DataFrame) -> List[Tuple[float, float]]:
 with st.form("degree_input_form"):
     st.subheader("1. Enter your modules")
 
+    st.markdown(
+        "**Optional:** upload CSVs and then edit in-place.\n\n"
+        "- **Completed CSV** must have columns: `Grade`, `Credits` (case-insensitive; `credit` also accepted)\n"
+        "- **Remaining CSV** must have column: `Credits` (or `credit`)\n"
+    )
+
+    up1, up2 = st.columns(2)
+    with up1:
+        completed_csv = st.file_uploader(
+            "Upload completed modules CSV (Grade, Credits)",
+            type=["csv"],
+            key="completed_csv",
+        )
+    with up2:
+        remaining_csv = st.file_uploader(
+            "Upload remaining modules CSV (Credits)",
+            type=["csv"],
+            key="remaining_csv",
+        )
+
     col_completed, col_outstanding = st.columns(2)
+
+    # ---- Defaults (used if no upload) ----
+    default_completed = pd.DataFrame(
+        [
+            {"Grade": 14.0, "Credits": 20.0},
+            {"Grade": 16.0, "Credits": 20.0},
+        ]
+    )
+    default_outstanding = pd.DataFrame(
+        [
+            {"Credits": 20.0},
+            {"Credits": 20.0},
+        ]
+    )
+
+    # ---- If uploaded, use uploaded data; otherwise use defaults ----
+    completed_seed = default_completed
+    completed_upload_error = None
+    if completed_csv is not None:
+        try:
+            completed_seed = validate_completed_csv(read_csv_upload(completed_csv))
+        except Exception as e:
+            completed_upload_error = str(e)
+
+    outstanding_seed = default_outstanding
+    remaining_upload_error = None
+    if remaining_csv is not None:
+        try:
+            outstanding_seed = validate_remaining_csv(read_csv_upload(remaining_csv))
+        except Exception as e:
+            remaining_upload_error = str(e)
 
     with col_completed:
         st.markdown("**Completed modules** (grade & credits)")
-        default_completed = pd.DataFrame(
-            [
-                {"Grade": 14.0, "Credits": 20.0},
-                {"Grade": 16.0, "Credits": 20.0},
-            ]
-        )
+        if completed_upload_error:
+            st.error(f"Completed CSV error: {completed_upload_error}")
+
         completed_df = st.data_editor(
-            default_completed,
+            completed_seed,
             key="completed_df",
             num_rows="dynamic",
             use_container_width=True,
@@ -382,14 +474,11 @@ with st.form("degree_input_form"):
 
     with col_outstanding:
         st.markdown("**Remaining modules** (credits only)")
-        default_outstanding = pd.DataFrame(
-            [
-                {"Credits": 20.0},
-                {"Credits": 20.0},
-            ]
-        )
+        if remaining_upload_error:
+            st.error(f"Remaining CSV error: {remaining_upload_error}")
+
         outstanding_df = st.data_editor(
-            default_outstanding,
+            outstanding_seed,
             key="outstanding_df",
             num_rows="dynamic",
             use_container_width=True,
@@ -408,24 +497,32 @@ with st.form("degree_input_form"):
 
     submitted = st.form_submit_button("Run analysis", type="primary")
 
+
 if submitted:
-    completed_list = parse_completed(completed_df)
-    outstanding_list = parse_outstanding(outstanding_df)
-
-    if len(completed_list) == 0:
-        st.warning("Please enter at least one completed module (grade + credits).")
+    # If uploads were invalid, stop early so users don't get confusing results
+    if (completed_csv is not None and completed_upload_error) or (
+        remaining_csv is not None and remaining_upload_error
+    ):
+        st.warning("Please fix the CSV upload errors above (or remove the upload) and try again.")
     else:
-        summary = degree_summary_and_requirements(
-            completed=completed_list,
-            outstanding=outstanding_list,
-            target_class=target_class,
-        )
+        completed_list = parse_completed(completed_df)
+        outstanding_list = parse_outstanding(outstanding_df)
 
-        # Persist in session_state for the planner
-        st.session_state["completed_list"] = completed_list
-        st.session_state["outstanding_list"] = outstanding_list
-        st.session_state["target_class"] = target_class
-        st.session_state["summary"] = summary
+        if len(completed_list) == 0:
+            st.warning("Please enter at least one completed module (grade + credits).")
+        else:
+            summary = degree_summary_and_requirements(
+                completed=completed_list,
+                outstanding=outstanding_list,
+                target_class=target_class,
+            )
+
+            # Persist in session_state for the planner
+            st.session_state["completed_list"] = completed_list
+            st.session_state["outstanding_list"] = outstanding_list
+            st.session_state["target_class"] = target_class
+            st.session_state["summary"] = summary
+
 
 # ------------------------
 # Show summary if we have it
@@ -488,26 +585,20 @@ if "summary" in st.session_state:
                 f"{needed_uniform:.2f}",
             )
 
-    # ------------------------
+    # ------------------------------
     # Scenario planner with sliders
-    # ------------------------
+    # ------------------------------
     if len(outstanding_list) > 0:
         st.markdown("---")
         st.subheader("Scenario planner: adjust your future grades")
 
-        # Initialise or update suggested grades
         n_outstanding = len(outstanding_list)
-        if "suggested_grades" not in st.session_state or len(
-            st.session_state["suggested_grades"]
-        ) != n_outstanding:
-            # sensible default: use required forward mean if available, else 10
+        if "suggested_grades" not in st.session_state or len(st.session_state["suggested_grades"]) != n_outstanding:
             default_grade = summary["needed_forward_mean"]
             if np.isnan(default_grade):
                 default_grade = 10.0
             default_grade = float(max(0.0, min(20.0, default_grade)))
-            st.session_state["suggested_grades"] = [
-                default_grade for _ in range(n_outstanding)
-            ]
+            st.session_state["suggested_grades"] = [default_grade for _ in range(n_outstanding)]
 
         suggested_grades = []
 
@@ -529,11 +620,8 @@ if "summary" in st.session_state:
             )
             suggested_grades.append(float(grade_val))
 
-        # store back
         st.session_state["suggested_grades"] = suggested_grades
 
-        # Immediately check (in Streamlit this is the most practical UX;
-        # if you really want a 1s debounce, you can add custom JS or a timed rerun.)
         result = check_suggestion_meets_requirements(
             completed=completed_list,
             outstanding=outstanding_list,
@@ -567,21 +655,15 @@ if "summary" in st.session_state:
             )
 
         st.markdown(
-            f"- Distance to target **mean band**: "
-            f"{delta_mean:+.2f} grade points\n"
-            f"- Distance to target **median band**: "
-            f"{delta_med:+.2f} grade points"
+            f"- Distance to target **mean band**: {delta_mean:+.2f} grade points\n"
+            f"- Distance to target **median band**: {delta_med:+.2f} grade points"
         )
 
     else:
-        st.info(
-            "No outstanding modules were entered, so there is nothing to plan forward."
-        )
+        st.info("No outstanding modules were entered, so there is nothing to plan forward.")
 else:
     st.info("Fill in your modules and click **Run analysis** to get started.")
 
 
-'''
-To open the sit run the following comman in terminal 
-streamlit run grades.py
-'''
+# To run:
+# streamlit run grades.py

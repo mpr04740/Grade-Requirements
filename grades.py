@@ -427,14 +427,14 @@ with st.form("degree_input_form"):
     # ---- Defaults (used if no upload) ----
     default_completed = pd.DataFrame(
         [
-            {"Grade": 14.0, "Credits": 20.0},
-            {"Grade": 16.0, "Credits": 20.0},
+            {"Grade": 14.0, "Credits": 15.0},
+            {"Grade": 16.0, "Credits": 15.0},
         ]
     )
     default_outstanding = pd.DataFrame(
         [
-            {"Credits": 20.0},
-            {"Credits": 20.0},
+            {"Credits": 15.0},
+            {"Credits": 15.0},
         ]
     )
 

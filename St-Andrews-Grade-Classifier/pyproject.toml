@@ -1,5 +1,5 @@
 [project]
-name = "st-andrews-degree-calculator"
+name = "St-Andrews-Grade-Classifier"
 version = "1.0.0"
 description = "Streamlit app for St Andrews degree classification using weighted mean and median"
 requires-python = ">=3.10"

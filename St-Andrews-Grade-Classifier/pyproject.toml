@@ -1,0 +1,11 @@
+[project]
+name = "st-andrews-degree-calculator"
+version = "1.0.0"
+description = "Streamlit app for St Andrews degree classification using weighted mean and median"
+requires-python = ">=3.10"
+
+dependencies = [
+  "streamlit>=1.31,<2.0",
+  "numpy>=1.24,<3.0",
+  "pandas>=2.0,<3.0",
+]

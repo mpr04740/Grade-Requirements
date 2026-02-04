@@ -818,7 +818,7 @@ st.write(
 st.subheader("Can the University see my results?")
 st.write(
     "No. This is an independent, unofficial tool created for planning and exploration. "
-    "It is **not connected to the University of St Andrews’ systems** and cannot access student records."
+    "It is **not connected to the University of St Andrews' systems** and cannot access student records."
 )
 
 st.subheader("Does this tool guarantee my final degree classification?")

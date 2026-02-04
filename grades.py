@@ -359,11 +359,17 @@ with col3:
 
 
 st.set_page_config(
-    page_title="Degree Classification Planner",
+    page_title="St Andrews Degree Classification Calculator | Weighted Mean & Median",
+    page_icon="🎓",
     layout="wide",
 )
 
-st.title("🎓 Degree Classification Planner")
+st.title("🎓 St Andrews Degree Classification Calculator")
+st.write(
+    "A University of St Andrews honours classification tool using the credit-weighted "
+    "mean and credit-weighted median (20-point scale). Upload grades + credits, set a target, "
+    "and plan remaining modules."
+)
 
 st.markdown(
     "Enter your **completed modules** and **remaining modules**, choose a "
@@ -707,6 +713,63 @@ if "summary" in st.session_state:
 else:
     st.info("Fill in your modules and click **Run analysis** to get started.")
 
+
+st.header("FAQ")
+
+st.subheader("How does St Andrews calculate degree classification?")
+st.write(
+    "The University of St Andrews determines Honours degree classification using a "
+    "credit-weighted mean and a credit-weighted median of Honours-level module grades "
+    "on the 20-point scale."
+)
+
+st.subheader("Does this tool follow the official St Andrews rules?")
+st.write(
+    "Yes. This calculator applies the published St Andrews classification rules, "
+    "including the use of mean and median with defined border zones between classifications. "
+    "It is designed to reflect how final Honours classifications are determined."
+)
+
+st.subheader("Where can I find the official St Andrews classification guidance?")
+st.write(
+    "You can view the University of St Andrews’ official degree classification guidance here:"
+)
+st.markdown(
+    "- **[Official St Andrews degree classification guidance – add link here]**"
+)
+
+st.subheader("What data do you collect or store?")
+st.write(
+    "This tool does **not** store, save, or transmit your data. "
+    "All grades and module credits you enter are processed **locally in your browser session** "
+    "and are cleared when you refresh or close the page."
+)
+
+st.subheader("Are my grades uploaded or shared with anyone?")
+st.write(
+    "No. Uploaded CSV files and manually entered grades are used only for on-screen calculations. "
+    "They are not written to a database, logged, or shared with third parties."
+)
+
+st.subheader("Can the University see my results?")
+st.write(
+    "No. This is an independent, unofficial tool created for planning and exploration. "
+    "It is **not connected to the University of St Andrews’ systems** and cannot access student records."
+)
+
+st.subheader("Does this tool guarantee my final degree classification?")
+st.write(
+    "No. This calculator is for guidance and planning only. "
+    "Final degree classifications are determined by the University of St Andrews in accordance "
+    "with its academic regulations."
+)
+
+st.subheader("Who is this tool for?")
+st.write(
+    "This calculator is intended for St Andrews students who want to understand how their "
+    "current grades contribute to their overall classification and to explore possible outcomes "
+    "based on remaining modules."
+)
 
 # To run:
 # streamlit run grades.py

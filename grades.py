@@ -24,7 +24,7 @@ def weighted_mean(gc: np.ndarray) -> Tuple[float, float]:
         return np.nan, 0.0
 
     mean = float(np.dot(grades, credits) / total_credits)
-    return mean, total_credits
+    return round(mean,1), total_credits
 
 def weighted_median(gc: np.ndarray) -> float:
     grades = gc[:, 0].astype(float)
@@ -46,7 +46,7 @@ def weighted_median(gc: np.ndarray) -> float:
     if cum_credits[idx] == cutoff and idx + 1 < len(grades):
         return float((grades[idx] + grades[idx + 1]) / 2.0)
 
-    return float(grades[idx])
+    return round(float(grades[idx]),1)
 
 CLASS_ORDER = {
     "Not of Honours standard": 5,
@@ -83,6 +83,7 @@ def classify_degree(mean: float, median: float) -> str:
             return label
 
     # Absolute safety net: if something unexpected happens
+    print(mean, median)
     return "Hi sorry there is a small error, not your fault! Your average and median are correct though. Contact me please."
 
 def minimal_forward_average_for_target_mean(target_mean,
@@ -233,9 +234,6 @@ def check_suggestion_meets_requirements(
     target_class: int,
     suggested_remaining_grades: List[float],
 ):
-    """
-    See your original docstring – unchanged behaviour.
-    """
 
     class_labels = {
         1: "First (I)",
@@ -513,8 +511,8 @@ with st.form("degree_input_form"):
             num_rows="dynamic",
             use_container_width=True,
             column_config={
-                "Grade": st.column_config.NumberColumn("Grade", step=0.1),
-                "Credits": st.column_config.NumberColumn("Credits", step=5),
+                "Grade": st.column_config.NumberColumn("Grade", step=0.1, format="%.1f"),
+                "Credits": st.column_config.NumberColumn("Credits", step=5, format="%.0f"),
             },
         )
 
@@ -588,14 +586,14 @@ if "summary" in st.session_state:
     with col1:
         st.metric(
             "Current weighted mean",
-            f"{summary['current_mean']:.2f}"
+            f"{summary['current_mean']:.1f}"
             if not np.isnan(summary["current_mean"])
             else "N/A",
         )
     with col2:
         st.metric(
             "Current weighted median",
-            f"{summary['current_median']:.2f}"
+            f"{summary['current_median']:.1f}"
             if not np.isnan(summary["current_median"])
             else "N/A",
         )
@@ -613,7 +611,7 @@ if "summary" in st.session_state:
         else:
             st.metric(
                 "Required average on remaining modules (mean)",
-                f"{needed_forward_mean:.2f}",
+                f"{needed_forward_mean:.1f}",
             )
 
     with col6:
@@ -628,7 +626,7 @@ if "summary" in st.session_state:
         else:
             st.metric(
                 "Uniform grade on remaining modules for target median",
-                f"{needed_uniform:.2f}",
+                f"{needed_uniform:.1f}",
             )
 
     # ------------------------------
@@ -679,9 +677,9 @@ if "summary" in st.session_state:
 
         c1, c2, c3 = st.columns(3)
         with c1:
-            st.metric("Final weighted mean", f"{result['final_mean']:.2f}")
+            st.metric("Final weighted mean", f"{result['final_mean']:.1f}")
         with c2:
-            st.metric("Final weighted median", f"{result['final_median']:.2f}")
+            st.metric("Final weighted median", f"{result['final_median']:.1f}")
         with c3:
             st.metric("Final classification", result["final_class"])
 
@@ -701,8 +699,8 @@ if "summary" in st.session_state:
             )
 
         st.markdown(
-            f"- Distance to target **mean band**: {delta_mean:+.2f} grade points\n"
-            f"- Distance to target **median band**: {delta_med:+.2f} grade points"
+            f"- Distance to target **mean band**: {delta_mean:+.1f} grade points\n"
+            f"- Distance to target **median band**: {delta_med:+.1f} grade points"
         )
 
     else:

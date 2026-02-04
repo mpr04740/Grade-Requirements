@@ -191,9 +191,8 @@ if submitted:
         if len(completed_list) == 0:
             st.warning("Please enter at least one completed module (grade + credits).")
         else:
-            summary = degree_summary_and_requirements(
+            summary = degree_summary(
                 completed=completed_list,
-                outstanding=outstanding_list,
                 target_class=target_class,
             )
 
@@ -215,7 +214,7 @@ if "summary" in st.session_state:
     target_class = st.session_state["target_class"]
 
     st.markdown("---")
-    st.subheader("Current position & requirements")
+    st.subheader("Current position")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -238,32 +237,6 @@ if "summary" in st.session_state:
     with col4:
         st.metric("Target classification", summary["target_class_label"])
 
-    col5, col6 = st.columns(2)
-
-    with col5:
-        needed_forward_mean = summary["needed_forward_mean"]
-        if np.isnan(needed_forward_mean):
-            st.info("No remaining credits - no forward average required.")
-        else:
-            st.metric(
-                "Required average on remaining modules (mean)",
-                f"{needed_forward_mean:.1f}",
-            )
-
-    with col6:
-        needed_uniform = summary["needed_uniform_for_median"]
-        if needed_uniform is None:
-            st.info(
-                "Target median band may be impossible to reach even with perfect "
-                "grades on remaining modules."
-            )
-        elif np.isnan(needed_uniform):
-            st.info("No remaining modules, so median can't be improved.")
-        else:
-            st.metric(
-                "Uniform grade on remaining modules for target median",
-                f"{needed_uniform:.1f}",
-            )
 
     # ------------------------------
     # Scenario planner with sliders
@@ -274,7 +247,7 @@ if "summary" in st.session_state:
         
         n_outstanding = len(outstanding_list)
         if "suggested_grades" not in st.session_state or len(st.session_state["suggested_grades"]) != n_outstanding:
-            default_grade = summary["needed_forward_mean"]
+            default_grade = summary["current_mean"]
             if np.isnan(default_grade):
                 default_grade = 10.0
             default_grade = float(max(0.0, min(20.0, default_grade)))
@@ -284,7 +257,7 @@ if "summary" in st.session_state:
 
         st.markdown(
             "Use the sliders to set the **grades you think you can achieve** "
-            "on each remaining module. The app will compute the final classification."
+            "on each remaining module. The app will compute the final classification. Use this to help set goals and meet your target classification."
         )
 
         for idx, (_, credit) in enumerate(outstanding_list):
@@ -321,8 +294,6 @@ if "summary" in st.session_state:
             st.metric("Final classification", result["final_class"])
 
         meets = result["meets_target_class"]
-        delta_mean = result["delta_mean_to_band"]
-        delta_med = result["delta_median_to_band"]
 
         if meets:
             st.success(
@@ -334,11 +305,6 @@ if "summary" in st.session_state:
                 f"❌ This plan **does not yet meet** your target classification "
                 f"({result['target_class_label']})."
             )
-
-        st.markdown(
-            f"- Distance to target **mean band**: {delta_mean:+.1f} grade points\n"
-            f"- Distance to target **median band**: {delta_med:+.1f} grade points"
-        )
 
     else:
         st.info("No outstanding modules were entered, so there is nothing to plan forward.")

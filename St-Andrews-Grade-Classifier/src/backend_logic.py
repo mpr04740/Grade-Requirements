@@ -26,7 +26,7 @@ def weighted_mean(gc: np.ndarray) -> Tuple[float, float]:
         return np.nan, 0.0
 
     mean = float(np.dot(grades, credits) / total_credits)
-    return round_1dp_half_up(mean), total_credits
+    return mean, total_credits
 
 def cw_median_js_equivalent(grades_and_credits):
     """
@@ -110,7 +110,7 @@ def weighted_median_by_expansion_5credits(
 
     if average_middle_two:
         return (lower + upper) / 2.0
-    return round_1dp_half_up(lower)
+    return lower
 
 
 def weighted_median(gc, double_check: bool = False) -> float:
@@ -123,7 +123,7 @@ def weighted_median(gc, double_check: bool = False) -> float:
             raise ValueError(
                 f"Weighted median mismatch: {median1} (expansion) != {median2} (JS equivalent)"
             )
-    return round_1dp_half_up(median1)
+    return median1
 
 
 CLASS_ORDER = {
@@ -138,6 +138,8 @@ def classify_degree(mean: float, median: float) -> str:
     if np.isnan(mean) or np.isnan(median):
         return "Not of Honours standard"
 
+    mean = round_1dp_half_up(mean)
+    median = round_1dp_half_up(median)
     # First
     if mean >= 16.5:
         return "First (I)"
@@ -161,72 +163,14 @@ def classify_degree(mean: float, median: float) -> str:
         return "Third (III)"
     else:
         return "Not of Honours standard"
-
-
-def minimal_forward_average_for_target_mean(target_mean,
-                                            credits_outstanding,
-                                            current_mean,
-                                            credits_completed):
-    Ca = credits_completed
-    Cr = credits_outstanding
-    Ma = current_mean
     
-    if Cr == 0:
-        return float('nan')
-
-    x = (target_mean * (Ca + Cr) - Ma * Ca) / Cr
-    return x
-
-
-def required_grade_for_target_median(existing_gc: np.ndarray,
-                                     remaining_credits: np.ndarray,
-                                     target: float,
-                                     grade_min: float = 0.0,
-                                     grade_max: float = 20.0,
-                                     tol: float = 1e-3):
-    """
-    Find the minimum constant grade on all remaining classes needed to reach
-    a target weighted median.
-    """
-
-    remaining_credits = np.asarray(remaining_credits, dtype=float)
-
-    # helper: compute median if all remaining classes have grade g
-    def median_if_grade(g: float) -> float:
-        remaining_gc = np.column_stack([
-            np.full_like(remaining_credits, g, dtype=float),
-            remaining_credits
-        ])
-        all_gc = np.vstack([existing_gc, remaining_gc])
-        return weighted_median(all_gc)
-
-    # Check if it is even possible
-    if median_if_grade(grade_max) < target:
-        return None  # impossible to reach target even with perfect grades
-
-    lo, hi = grade_min, grade_max
-    # Binary search for minimal grade g such that median >= target
-    while hi - lo > tol:
-        mid = (lo + hi) / 2.0
-        med = median_if_grade(mid)
-        if med >= target:
-            hi = mid
-        else:
-            lo = mid
-
-    return hi
-
-
-def degree_summary_and_requirements(
+def degree_summary(
     completed: List[Tuple[float, float]],
-    outstanding: List[Tuple[float, float]],
     target_class: int,
 ):
     """
-    completed:   list of (grade, credit) for modules already done
-    outstanding: list of (placeholder_grade, credit) for future modules;
-                 only the credits are used.
-    target_class: 1 = First, 2 = Upper Second, 3 = Lower Second, 4 = Third
+    Minimal current-position summary.
+    No 'requirements' logic.
     """
 
     class_labels = {
@@ -235,73 +179,27 @@ def degree_summary_and_requirements(
         3: "Lower Second (II.2)",
         4: "Third (III)",
     }
-    mean_thresholds = {
-        1: 16.5,  # First
-        2: 13.5,  # Upper Second
-        3: 10.5,  # Lower Second
-        4: 7.0,   # Third
-    }
-    median_thresholds = mean_thresholds  # same band boundaries for median
 
     if target_class not in class_labels:
         raise ValueError("target_class must be an integer from 1 to 4")
 
-    target_mean = mean_thresholds[target_class]
-    target_median = median_thresholds[target_class]
     target_label = class_labels[target_class]
 
-    # ---- Completed modules ----
-    if len(completed) > 0:
-        gc_completed = np.array(completed, dtype=float)  # shape (n, 2)
-        current_mean, credits_completed = weighted_mean(gc_completed)
+    if completed:
+        gc_completed = np.array(completed, dtype=float)
+        current_mean, _ = weighted_mean(gc_completed)
         current_median = weighted_median(gc_completed)
         current_class = classify_degree(current_mean, current_median)
     else:
-        gc_completed = np.zeros((0, 2), dtype=float)
         current_mean = np.nan
         current_median = np.nan
         current_class = "Not of Honours standard"
-        credits_completed = 0.0
-
-    # ---- Outstanding modules (only credits matter here) ----
-    if len(outstanding) > 0:
-        remaining_credits_arr = np.array([w for (_, w) in outstanding], dtype=float)
-        credits_outstanding = float(remaining_credits_arr.sum())
-    else:
-        remaining_credits_arr = np.zeros(0, dtype=float)
-        credits_outstanding = 0.0
-
-    # ---- Needed forward mean (average over remaining modules) ----
-    if credits_outstanding > 0:
-        needed_forward_mean = minimal_forward_average_for_target_mean(
-            target_mean=target_mean,
-            credits_outstanding=credits_outstanding,
-            current_mean=current_mean if not np.isnan(current_mean) else 0.0,
-            credits_completed=credits_completed,
-        )
-    else:
-        needed_forward_mean = np.nan
-
-    # ---- Needed uniform grade on remaining modules for target median ----
-    if credits_outstanding > 0:
-        needed_uniform_for_median = required_grade_for_target_median(
-            existing_gc=gc_completed,
-            remaining_credits=remaining_credits_arr,
-            target=target_median,
-            grade_min=0.0,
-            grade_max=20.0,
-            tol=1e-3,
-        )
-    else:
-        needed_uniform_for_median = None
 
     return {
         "current_mean": current_mean,
         "current_median": current_median,
         "current_class": current_class,
         "target_class_label": target_label,
-        "needed_forward_mean": needed_forward_mean,
-        "needed_uniform_for_median": needed_uniform_for_median,
     }
 
 

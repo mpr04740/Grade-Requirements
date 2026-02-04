@@ -1,13 +1,16 @@
 import time
 from typing import List, Tuple
-
 import numpy as np
 import pandas as pd
 import streamlit as st
+from decimal import Decimal, ROUND_HALF_UP
+
 
 # ------------------------
 # Core logic 
 # ------------------------
+def round_1dp_half_up(x: float) -> float:
+    return float(Decimal(str(x)).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
 
 def weighted_mean(gc: np.ndarray) -> Tuple[float, float]:
     """
@@ -24,29 +27,143 @@ def weighted_mean(gc: np.ndarray) -> Tuple[float, float]:
         return np.nan, 0.0
 
     mean = float(np.dot(grades, credits) / total_credits)
-    return round(mean,1), total_credits
+    return round_1dp_half_up(mean,1), total_credits
 
-def weighted_median(gc: np.ndarray) -> float:
-    grades = gc[:, 0].astype(float)
-    credits = gc[:, 1].astype(float)
+def cw_median_js_equivalent(grades_and_credits):
+    """
+    Exact Python equivalent of the JavaScript CWMedian().
 
-    order = np.argsort(grades)
-    grades = grades[order]
-    credits = credits[order]
+    - Sorts input IN PLACE
+    - Uses (total_credits + 1) / 2
+    - Averages grades if midpoint falls exactly between modules
+    - No extra safety guards beyond the JS logic
+    """
 
-    cum_credits = np.cumsum(credits)
-    total = cum_credits[-1]
-    if total == 0:
-        return np.nan
+    # JS sorts in place
+    grades_and_credits.sort(key=lambda x: x["grade"])
 
-    cutoff = total / 2.0
-    idx = np.searchsorted(cum_credits, cutoff)
+    # Sum credits
+    credits = 0
+    for item in grades_and_credits:
+        credits += item["credits"]
 
-    # EXACT split → average middle two
-    if cum_credits[idx] == cutoff and idx + 1 < len(grades):
-        return float((grades[idx] + grades[idx + 1]) / 2.0)
+    # Middle credit number
+    credit_total = (credits + 1) / 2
 
-    return round(float(grades[idx]),1)
+    def is_int(x):
+        return x == int(x)
+
+    if is_int(credit_total):
+        # Integer midpoint case
+        credits = 0
+        for item in grades_and_credits:
+            credits += item["credits"]
+            if credits >= credit_total:
+                return item["grade"]
+    else:
+        # Non-integer midpoint
+        credits = 0
+        for i in range(len(grades_and_credits)):
+            credits += grades_and_credits[i]["credits"]
+
+            # EXACT translation of JS condition
+            if ((credit_total - 0.5) == credits) and ((credit_total + 0.5) > credits):
+                return (
+                    grades_and_credits[i]["grade"]
+                    + grades_and_credits[i + 1]["grade"]
+                ) / 2
+
+            elif credits > credit_total:
+                return grades_and_credits[i]["grade"]
+
+def weighted_median_by_expansion_5credits(
+    gc: List[Tuple[float, int]],
+    *,
+    average_middle_two: bool = True,
+) -> float:
+    """
+    Credit-weighted median by *explicit expansion* into a list of grades,
+    using 5-credit units (St Andrews style).
+
+    Concept:
+      - All module credits are multiples of 5.
+      - Treat each 5 credits as one 'unit' or 'vote'.
+      - Repeat each grade (credits / 5) times.
+      - Sort the expanded list.
+      - Take the middle value(s).
+
+    Parameters
+    ----------
+    gc : list of (grade, credits)
+        Example: [(16.4, 15), (12.0, 20), (18.0, 30)]
+
+    average_middle_two : bool, default False
+        False  -> policy/admin style:
+                  if expanded length is even, return the *lower* middle value
+        True   -> textbook median:
+                  if expanded length is even, return the average of the two middle values
+
+    Returns
+    -------
+    float
+        The weighted median grade.
+        Returns NaN if no valid credits.
+    """
+    expanded: List[float] = []
+
+    for grade, credits in gc:
+        # Skip invalid or zero-credit entries
+        if credits is None or credits <= 0:
+            continue
+
+        # Enforce St Andrews credit structure
+        if credits % 5 != 0:
+            raise ValueError(
+                f"Credits must be multiples of 5 for this method (got {credits})."
+            )
+
+        # Number of repetitions = credits / 5
+        repetitions = credits // 5
+
+        # Repeat the grade explicitly
+        expanded.extend([float(grade)] * repetitions)
+
+    # If nothing survived validation
+    if not expanded:
+        return float("nan")
+    
+    expanded.sort()
+
+    n = len(expanded)
+
+    # Odd length: single middle element
+    if n % 2 == 1:
+        mid_index = n // 2
+        return expanded[mid_index]
+
+    # Even length
+    lower_mid_index = (n // 2) - 1
+    upper_mid_index = n // 2
+
+    if average_middle_two:
+        # Textbook median
+        return (expanded[lower_mid_index] + expanded[upper_mid_index]) / 2.0
+    else:
+        # Policy/admin style: choose lower middle
+        return expanded[lower_mid_index]
+
+
+def weighted_median(gc, double_check: bool = True) -> float:
+
+    median1 = weighted_median_by_expansion_5credits(gc)
+    if double_check:
+        median2 = cw_median_js_equivalent(gc)
+        if median1 != median2:
+            raise ValueError(
+                f"Weighted median mismatch: {median1} (expansion) != {median2} (JS equivalent)"
+            )
+    return round_1dp_half_up(median1)
+
 
 CLASS_ORDER = {
     "Not of Honours standard": 5,
@@ -60,31 +177,30 @@ def classify_degree(mean: float, median: float) -> str:
     if np.isnan(mean) or np.isnan(median):
         return "Not of Honours standard"
 
-    rules = [
-        ("First (I)",                 lambda m, d: m >= 16.5),
-        ("First (I)",                 lambda m, d: 16.0 <= m <= 16.4 and d >= 16.5),
+    # First
+    if mean >= 16.5:
+        return "First (I)"
+    elif 16.0 <= mean <= 16.4:
+        return "First (I)" if median >= 16.5 else "Upper Second (II.1)"
 
-        ("Upper Second (II.1)",       lambda m, d: m <= 16.4 and d <= 16.4),
-        ("Upper Second (II.1)",       lambda m, d: 13.5 <= m <= 15.9),
-        ("Upper Second (II.1)",       lambda m, d: 13.0 <= m <= 13.4 and d >= 13.5),
+    # Upper Second
+    elif 13.5 <= mean <= 15.9:
+        return "Upper Second (II.1)"
+    elif 13.0 <= mean <= 13.4:
+        return "Upper Second (II.1)" if median >= 13.5 else "Lower Second (II.2)"
 
-        ("Lower Second (II.2)",       lambda m, d: d <= 13.4),
-        ("Lower Second (II.2)",       lambda m, d: 10.5 <= m <= 12.9),
-        ("Lower Second (II.2)",       lambda m, d: 10.0 <= m <= 10.4 and d >= 10.5),
+    # Lower Second
+    elif 10.5 <= mean <= 12.9:
+        return "Lower Second (II.2)"
+    elif 10.0 <= mean <= 10.4:
+        return "Lower Second (II.2)" if median >= 10.5 else "Third (III)"
 
-        ("Third (III)",               lambda m, d: m <= 10.4),
-        ("Third (III)",               lambda m, d: 7.0 <= m <= 9.9),
+    # Third / fail
+    elif 7.0 <= mean <= 9.9:
+        return "Third (III)"
+    else:
+        return "Not of Honours standard"
 
-        ("Not of Honours standard",   lambda m, d: m <= 6.9),
-    ]
-
-    for label, cond in rules:
-        if cond(mean, median):
-            return label
-
-    # Absolute safety net: if something unexpected happens
-    print(mean, median)
-    return "Hi sorry there is a small error, not your fault! Your average and median are correct though. Contact me please."
 
 def minimal_forward_average_for_target_mean(target_mean,
                                             credits_outstanding,
@@ -309,6 +425,12 @@ def check_suggestion_meets_requirements(
 # Streamlit UI (with optional CSV upload)
 # ------------------------
 
+st.set_page_config(
+    page_title="St Andrews Degree Classification Calculator | Weighted Mean & Median",
+    page_icon="🎓",
+    layout="wide",
+)
+
 st.markdown(
     """
     <style>
@@ -354,13 +476,6 @@ with col3:
         '<a class="coffee-btn" href="https://buymeacoffee.com/michaelangelospr?status=1" target="_blank">☕ Buy me a coffee</a>',
         unsafe_allow_html=True
     )
-
-
-st.set_page_config(
-    page_title="St Andrews Degree Classification Calculator | Weighted Mean & Median",
-    page_icon="🎓",
-    layout="wide",
-)
 
 st.title("🎓 St Andrews Degree Classification Calculator")
 st.write(

@@ -453,15 +453,12 @@ with st.form("degree_input_form"):
 
     st.markdown(
         "Use the tables below to enter your completed and remaining modules.\n\n"
-        "**Optional:** upload CSVs and then edit.\n\n"
-        "- **Completed CSV** must have columns: `Grade`, `Credits` (case-insensitive; `credit` also accepted)\n"
-        "- **Remaining CSV** must have column: `Credits` (or `credit`)\n"
     )
 
     up1, up2 = st.columns(2)
     with up1:
         completed_csv = st.file_uploader(
-            "Upload completed modules CSV (Grade, Credits)",
+            "Optionally upload completed modules CSV (Grade, Credits)",
             type=["csv"],
             key="completed_csv",
         )
@@ -718,16 +715,8 @@ st.header("FAQ")
 
 st.subheader("How does St Andrews calculate degree classification?")
 st.write(
-    "The University of St Andrews determines Honours degree classification using a "
-    "credit-weighted mean and a credit-weighted median of Honours-level module grades "
-    "on the 20-point scale."
-)
-
-st.subheader("Does this tool follow the official St Andrews rules?")
-st.write(
-    "Yes. This calculator applies the published St Andrews classification rules, "
-    "including the use of mean and median with defined border zones between classifications. "
-    "It is designed to reflect how final Honours classifications are determined."
+    "The University of St Andrews determines Honours degree classification uses both mean and median grades" \
+    ", weighted by module credits, on a 20-point scale. This tool replicates the calculation method as per the official guidance." 
 )
 
 st.subheader("Where can I find the official St Andrews classification guidance?")
@@ -735,7 +724,7 @@ st.write(
     "You can view the University of St Andrews’ official degree classification guidance here:"
 )
 st.markdown(
-    "- **[Official St Andrews degree classification guidance – add link here]**"
+    "- **[https://www.st-andrews.ac.uk/policy/academic-policies-assessment-examination-and-award-classification/classification-policy.pdf]**"
 )
 
 st.subheader("What data do you collect or store?")

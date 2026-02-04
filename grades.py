@@ -27,25 +27,26 @@ def weighted_mean(gc: np.ndarray) -> Tuple[float, float]:
         return np.nan, 0.0
 
     mean = float(np.dot(grades, credits) / total_credits)
-    return round_1dp_half_up(mean,1), total_credits
+    return round_1dp_half_up(mean), total_credits
 
 def cw_median_js_equivalent(grades_and_credits):
     """
-    Exact Python equivalent of the JavaScript CWMedian().
+    Exact Python equivalent of the JavaScript CWMedian(),
+    assuming input is a list of (grade, credits) pairs.
 
-    - Sorts input IN PLACE
-    - Uses (total_credits + 1) / 2
-    - Averages grades if midpoint falls exactly between modules
-    - No extra safety guards beyond the JS logic
+    Example input:
+        [(16.4, 15), (12.0, 20), (18.0, 30)]
     """
+    grades_and_credits = list(grades_and_credits)  # make a copy as a list
 
-    # JS sorts in place
-    grades_and_credits.sort(key=lambda x: x["grade"])
+
+    # JS sorts IN PLACE by grade
+    grades_and_credits.sort(key=lambda x: x[0])
 
     # Sum credits
     credits = 0
-    for item in grades_and_credits:
-        credits += item["credits"]
+    for _, c in grades_and_credits:
+        credits += c
 
     # Middle credit number
     credit_total = (credits + 1) / 2
@@ -56,106 +57,67 @@ def cw_median_js_equivalent(grades_and_credits):
     if is_int(credit_total):
         # Integer midpoint case
         credits = 0
-        for item in grades_and_credits:
-            credits += item["credits"]
+        for grade, c in grades_and_credits:
+            credits += c
             if credits >= credit_total:
-                return item["grade"]
+                return grade
     else:
         # Non-integer midpoint
         credits = 0
         for i in range(len(grades_and_credits)):
-            credits += grades_and_credits[i]["credits"]
+            grade, c = grades_and_credits[i]
+            credits += c
 
-            # EXACT translation of JS condition
+            # EXACT JS condition
             if ((credit_total - 0.5) == credits) and ((credit_total + 0.5) > credits):
-                return (
-                    grades_and_credits[i]["grade"]
-                    + grades_and_credits[i + 1]["grade"]
-                ) / 2
+                # average current + next grade
+                return (grade + grades_and_credits[i + 1][0]) / 2.0
 
             elif credits > credit_total:
-                return grades_and_credits[i]["grade"]
+                return grade
 
 def weighted_median_by_expansion_5credits(
-    gc: List[Tuple[float, int]],
+    gc: List[Tuple[float, float]],  # allow floats coming from numpy
     *,
     average_middle_two: bool = True,
 ) -> float:
-    """
-    Credit-weighted median by *explicit expansion* into a list of grades,
-    using 5-credit units (St Andrews style).
-
-    Concept:
-      - All module credits are multiples of 5.
-      - Treat each 5 credits as one 'unit' or 'vote'.
-      - Repeat each grade (credits / 5) times.
-      - Sort the expanded list.
-      - Take the middle value(s).
-
-    Parameters
-    ----------
-    gc : list of (grade, credits)
-        Example: [(16.4, 15), (12.0, 20), (18.0, 30)]
-
-    average_middle_two : bool, default False
-        False  -> policy/admin style:
-                  if expanded length is even, return the *lower* middle value
-        True   -> textbook median:
-                  if expanded length is even, return the average of the two middle values
-
-    Returns
-    -------
-    float
-        The weighted median grade.
-        Returns NaN if no valid credits.
-    """
     expanded: List[float] = []
 
     for grade, credits in gc:
-        # Skip invalid or zero-credit entries
-        if credits is None or credits <= 0:
+        if credits is None or float(credits) <= 0:
             continue
 
-        # Enforce St Andrews credit structure
-        if credits % 5 != 0:
-            raise ValueError(
-                f"Credits must be multiples of 5 for this method (got {credits})."
-            )
+        # Convert to integer credits safely (handles 15.0 from numpy)
+        credits_int = int(round(float(credits)))
 
-        # Number of repetitions = credits / 5
-        repetitions = credits // 5
+        # Enforce multiples of 5 (after conversion)
+        if credits_int % 5 != 0:
+            raise ValueError(f"Credits must be multiples of 5 (got {credits}).")
 
-        # Repeat the grade explicitly
+        repetitions = credits_int // 5
         expanded.extend([float(grade)] * repetitions)
 
-    # If nothing survived validation
     if not expanded:
         return float("nan")
-    
-    expanded.sort()
 
+    expanded.sort()
     n = len(expanded)
 
-    # Odd length: single middle element
     if n % 2 == 1:
-        mid_index = n // 2
-        return expanded[mid_index]
+        return expanded[n // 2]
 
-    # Even length
-    lower_mid_index = (n // 2) - 1
-    upper_mid_index = n // 2
+    lower = expanded[(n // 2) - 1]
+    upper = expanded[n // 2]
 
     if average_middle_two:
-        # Textbook median
-        return (expanded[lower_mid_index] + expanded[upper_mid_index]) / 2.0
-    else:
-        # Policy/admin style: choose lower middle
-        return expanded[lower_mid_index]
+        return (lower + upper) / 2.0
+    return round_1dp_half_up(lower)
 
 
-def weighted_median(gc, double_check: bool = True) -> float:
+def weighted_median(gc, double_check: bool = False) -> float:
 
     median1 = weighted_median_by_expansion_5credits(gc)
+    
     if double_check:
         median2 = cw_median_js_equivalent(gc)
         if median1 != median2:

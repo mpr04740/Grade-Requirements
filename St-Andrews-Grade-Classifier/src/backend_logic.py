@@ -190,14 +190,20 @@ def degree_summary(
         current_mean, _ = weighted_mean(gc_completed)
         current_median = weighted_median(gc_completed)
         current_class = classify_degree(current_mean, current_median)
+        current_mean_rounded = round_1dp_half_up(current_mean)
+        current_median_rounded = round_1dp_half_up(current_median)
     else:
         current_mean = np.nan
         current_median = np.nan
         current_class = "Not of Honours standard"
+        current_mean_rounded = np.nan
+        current_median_rounded = np.nan
 
     return {
         "current_mean": current_mean,
         "current_median": current_median,
+        "current_mean_rounded": current_mean_rounded,
+        "current_median_rounded": current_median_rounded,
         "current_class": current_class,
         "target_class_label": target_label,
     }
@@ -255,10 +261,12 @@ def check_suggestion_meets_requirements(
     final_mean, _ = weighted_mean(all_gc)
     final_median = weighted_median(all_gc)
     final_class = classify_degree(final_mean, final_median)
+    final_mean_rounded = round_1dp_half_up(final_mean)
+    final_median_rounded = round_1dp_half_up(final_median)
 
     # --- check against band thresholds (mean/median) ---
-    meets_mean_band = final_mean >= target_mean_band
-    meets_median_band = final_median >= target_median_band
+    meets_mean_band = final_mean_rounded >= target_mean_band
+    meets_median_band = final_median_rounded >= target_median_band
 
     final_order = CLASS_ORDER.get(final_class, 999)
     target_order = CLASS_ORDER[target_label]
@@ -267,6 +275,8 @@ def check_suggestion_meets_requirements(
     result = {
         "final_mean": final_mean,
         "final_median": final_median,
+        "final_mean_rounded": final_mean_rounded,
+        "final_median_rounded": final_median_rounded,
         "final_class": final_class,
         "target_class_label": target_label,
         "meets_mean_band": meets_mean_band,

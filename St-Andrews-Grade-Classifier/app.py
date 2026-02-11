@@ -221,15 +221,15 @@ if "summary" in st.session_state:
     with col1:
         st.metric(
             "Current weighted mean",
-            f"{summary['current_mean']:.1f}"
-            if not np.isnan(summary["current_mean"])
+            f"{summary['current_mean_rounded']:.1f}"
+            if not np.isnan(summary["current_mean_rounded"])
             else "N/A",
         )
     with col2:
         st.metric(
             "Current weighted median",
-            f"{summary['current_median']:.1f}"
-            if not np.isnan(summary["current_median"])
+            f"{summary['current_median_rounded']:.1f}"
+            if not np.isnan(summary["current_median_rounded"])
             else "N/A",
         )
     with col3:
@@ -287,9 +287,9 @@ if "summary" in st.session_state:
 
         c1, c2, c3 = st.columns(3)
         with c1:
-            st.metric("Final weighted mean", f"{result['final_mean']:.1f}")
+            st.metric("Final weighted mean", f"{result['final_mean_rounded']:.1f}")
         with c2:
-            st.metric("Final weighted median", f"{result['final_median']:.1f}")
+            st.metric("Final weighted median", f"{result['final_median_rounded']:.1f}")
         with c3:
             st.metric("Final classification", result["final_class"])
 

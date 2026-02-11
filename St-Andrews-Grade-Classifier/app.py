@@ -314,49 +314,49 @@ else:
 
 st.header("FAQ")
 
-st.subheader("How does St Andrews calculate degree classification?")
-st.write(
-    "The University of St Andrews determines Honours degree classification uses both mean and median grades" \
-    ", weighted by module credits, on a 20-point scale. This tool replicates the calculation method as per the official guidance." 
-)
+with st.expander("How does St Andrews calculate degree classification?", expanded=True):
+    st.write(
+        "The University of St Andrews determines Honours degree classification uses both mean and median grades"
+        ", weighted by module credits, on a 20-point scale. This tool replicates the calculation method as per the official guidance."
+    )
 
-st.subheader("Where can I find the official St Andrews classification guidance?")
-st.write(
-    "You can view the University of St Andrews’ official degree classification guidance here:"
-)
-st.markdown(
-    "- **[https://www.st-andrews.ac.uk/policy/academic-policies-assessment-examination-and-award-classification/classification-policy.pdf]**"
-)
+with st.expander("Where can I find the official St Andrews classification guidance?"):
+    st.write(
+        "You can view the University of St Andrews? official degree classification guidance here:"
+    )
+    st.markdown(
+        "- **[https://www.st-andrews.ac.uk/policy/academic-policies-assessment-examination-and-award-classification/classification-policy.pdf]**"
+    )
 
-st.subheader("What data do you collect or store?")
-st.write(
-    "This tool does **not** store, save, or transmit your data. "
-    "All grades and module credits you enter are processed **locally in your browser session** "
-    "and are cleared when you refresh or close the page."
-)
+with st.expander("What data do you collect or store?"):
+    st.write(
+        "This tool does **not** store, save, or transmit your data. "
+        "All grades and module credits you enter are processed **locally in your browser session** "
+        "and are cleared when you refresh or close the page."
+    )
 
-st.subheader("Are my grades uploaded or shared with anyone?")
-st.write(
-    "No. Uploaded CSV files and manually entered grades are used only for on-screen calculations. "
-    "They are not written to a database, logged, or shared with third parties."
-)
+with st.expander("Are my grades uploaded or shared with anyone?"):
+    st.write(
+        "No. Uploaded CSV files and manually entered grades are used only for on-screen calculations. "
+        "They are not written to a database, logged, or shared with third parties."
+    )
 
-st.subheader("Can the University see my results?")
-st.write(
-    "No. This is an independent, unofficial tool created for planning and exploration. "
-    "It is **not connected to the University of St Andrews’ systems** and cannot access student records."
-)
+with st.expander("Can the University see my results?"):
+    st.write(
+        "No. This is an independent, unofficial tool created for planning and exploration. "
+        "It is **not connected to the University of St Andrews? systems** and cannot access student records."
+    )
 
-st.subheader("Does this tool guarantee my final degree classification?")
-st.write(
-    "No. This calculator is for guidance and planning only. "
-    "Final degree classifications are determined by the University of St Andrews in accordance "
-    "with its academic regulations."
-)
+with st.expander("Does this tool guarantee my final degree classification?"):
+    st.write(
+        "No. This calculator is for guidance and planning only. "
+        "Final degree classifications are determined by the University of St Andrews in accordance "
+        "with its academic regulations."
+    )
 
-st.subheader("Who is this tool for?")
-st.write(
-    "This calculator is intended for St Andrews students who want to understand how their "
-    "current grades contribute to their overall classification and to explore possible outcomes "
-    "based on remaining modules."
-)
+with st.expander("Who is this tool for?"):
+    st.write(
+        "This calculator is intended for St Andrews students who want to understand how their "
+        "current grades contribute to their overall classification and to explore possible outcomes "
+        "based on remaining modules."
+    )

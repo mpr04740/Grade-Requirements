@@ -325,7 +325,7 @@ with st.expander("Where can I find the official St Andrews classification guidan
         "You can view the University of St Andrews? official degree classification guidance here:"
     )
     st.markdown(
-        "- **[https://www.st-andrews.ac.uk/policy/academic-policies-assessment-examination-and-award-classification/classification-policy.pdf]**"
+        "**[https://www.st-andrews.ac.uk/policy/academic-policies-assessment-examination-and-award-classification/classification-policy.pdf]**"
     )
 
 with st.expander("What data do you collect or store?"):

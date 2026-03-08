@@ -75,8 +75,8 @@ def cw_median_js_equivalent(grades_and_credits):
             elif credits > credit_total:
                 return grade
 
-def weighted_median_by_expansion_5credits(
-    gc: List[Tuple[float, float]],  # allow floats coming from numpy
+def weighted_median_by_expansion_1credits(
+    gc: List[Tuple[float, float]],
     *,
     average_middle_two: bool = True,
 ) -> float:
@@ -86,14 +86,9 @@ def weighted_median_by_expansion_5credits(
         if credits is None or float(credits) <= 0:
             continue
 
-        # Convert to integer credits safely (handles 15.0 from numpy)
-        credits_int = int(round(float(credits)))
+        credits_int = int(float(credits))
 
-        # Enforce multiples of 5 (after conversion)
-        if credits_int % 5 != 0:
-            raise ValueError(f"Credits must be multiples of 5 (got {credits}).")
-
-        repetitions = credits_int // 5
+        repetitions = credits_int
         expanded.extend([float(grade)] * repetitions)
 
     if not expanded:
@@ -112,13 +107,12 @@ def weighted_median_by_expansion_5credits(
         return (lower + upper) / 2.0
     return lower
 
-
 def weighted_median(gc, double_check: bool = False) -> float:
 
-    median1 = weighted_median_by_expansion_5credits(gc)
+    median1 = cw_median_js_equivalent(gc)
     
     if double_check:
-        median2 = cw_median_js_equivalent(gc)
+        median2 = weighted_median_by_expansion_1credits(gc)
         if median1 != median2:
             raise ValueError(
                 f"Weighted median mismatch: {median1} (expansion) != {median2} (JS equivalent)"
